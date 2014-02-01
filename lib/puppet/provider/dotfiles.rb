@@ -1,3 +1,4 @@
+require 'fileutils'
 require 'pathname'
 
 class Dotfile
@@ -5,30 +6,65 @@ class Dotfile
   def initialize (file, dfs)
     @file = file
     @dotfiles = dfs
-    @target = dfs.home + file.relative_path_from(dfs.dotfiles).sub(/^(dot_|dcp_)/, '.').sub(/^(cpy_|mov_|mkd_)/, '').sub(/(\/dot_|\/dcp_)/, '/.').sub(/(\/cpy_|\/mov_|\/mkd_)/, '/')
-    @action = file.basename.to_path =~ /^(dcp_|cpy_|mov_|mkd_)/ ? file.basename.to_path[0,4] : "lnk_"
+    @target = (Pathname.new(dfs.home) + file.relative_path_from(Pathname.new(dfs.dotfiles))).to_path.gsub(/^(dot_|dcp_)/, '.').gsub(/^(cpy_|mov_|mkd_)/, '').gsub(/(\/dot_|\/dcp_)/, '/.').gsub(/(\/cpy_|\/mov_|\/mkd_)/, '/')
+    @action = case file.basename.to_path[0,3]
+                when "dcp", "cpy" then "copy"
+                when "mov" then "move"
+                when "mkd" then "mkdir"
+                else "link"
+              end
   end
 
   def directory?
-    @action == 'mkd_' ? true : false
+    @action == 'mkdir' ? true : false
   end
 
   def to_s
-    "#{@action} #{@file.to_path} \t#{@target}"
+    "#{@file.to_path} \t#{@target}"
+  end
+
+  def operation
+    self.send(action)
+  end
+
+  def copy
+    FileUtils.copy @file, @target
+#    puts "Copying #{self}"
+  end
+
+  def link
+    FileUtils.ln_sf @file, @target
+#    puts "Linking #{self}"
+  end
+
+  def move
+    puts "moving #{self}"
+  end
+
+  def mkdir
+    FileUtils.mkdir_p @target
+#    puts "Make Directory #{self}"
   end
 end
 
 
 class Dotfiles
+  include Enumerable
+
   attr_reader :dotfiles, :home
 
   def initialize (dotfiles, home)
-    @dotfiles = Pathname.new(dotfiles)
-    @home = Pathname.new(home)
+    @dotfiles, @home = dotfiles, home
+  end
+
+  def each(&block)
+    Pathname.glob(@dotfiles + "/*").each do |f|
+      block.call(Dotfile.new(f,self))
+    end
   end
 
   def to_s 
-    "Source: #{@dotfiles.to_path}\nDestination: #{@home.to_path}"
+    "Source: #{@dotfiles}\nDestination: #{@home}"
   end
 
 end
@@ -36,8 +72,9 @@ end
 def sync_subdir(dir, level = 1)
   Pathname.glob(dir.file.to_path + "/*") do |f|
     df = Dotfile.new(f, dir.dotfiles)
+  df.operation
 
-    puts df.to_s
+#    puts df.to_s
     sync_subdir(df, level + 1) if df.directory?
   end
 end
@@ -54,6 +91,12 @@ def sync_dotfiles(dfs)
 
 end
 
-dfs = Dotfiles.new("/root/.dotfiles/home", "/root")
+dfs = Dotfiles.new("/root/.dotfiles/home", "/root/tmp/dotfiles_test")
+puts dfs
+dfs.each do |f|
 
-sync_dotfiles(dfs)
+  f.operation
+
+    sync_subdir(f) if f.directory?
+
+end

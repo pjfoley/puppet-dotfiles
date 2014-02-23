@@ -1,11 +1,11 @@
 require File.expand_path('../dotfiles/dotfile', __FILE__)
+require 'find'
 
 module Puppet
 module Util
   class Dotfiles
-#    include Enumerable
 
-    def initialize(dotfiles, home, backup = true, backup_path = "#{home}/.backupdot", removed_dotfiles = [])
+    def initialize(dotfiles, home, backup = true, backup_path = "#{home}/.dotfiles_org" )
       # Folder locations
       @dotfiles_path, @home_path, @backup_path = dotfiles, home, backup_path
 
@@ -13,26 +13,23 @@ module Util
       @backup = backup
 
       # Used with backup file name
-      @timestamp = Time.now.strftime("%Y%m%d%H%M%S")
+      @timestamp = Time.now.strftime("%Y%m%d%H%M")
 
-      # Files to clean up from home directory
-      @removed_dotfiles = removed_dotfiles
-
-      @dotfile_names = []
       @dotfile_hash = {}
-
-      @exists = false
+      @cleanup_dotfile_hash = {}
 
       if File.directory?(@dotfiles_path)
+        parse_dangling_dotfiles
         parse_dotfiles
-        @exists = dotfile_hash.collect { |k, v| v.exists_dotfile?}.all?
       end
     end
 
-    attr_reader :dotfile_names, :dotfile_hash, :dotfiles_path, :home_path, :backup_path, :timestamp
+    attr_reader :dotfile_hash, :dotfiles_path, :home_path, :backup_path, :timestamp
 
 
     def create
+      @cleanup_dotfile_hash.each { |k,df| df.remove; @cleanup_dotfile_hash.delete(k) }
+      return if exists?
       @dotfile_hash.each do |k,df|
         df.backup if @backup && df.exists_bkupfile?
         df.install
@@ -44,23 +41,27 @@ module Util
     end
 
     def exists?
-      @exists
+      dotfile_hash.collect { |k, v| v.exists_dotfile?}.all? && @cleanup_dotfile_hash.empty?
     end
 
 
     private
 
-    def add_dotfile(df)
-      @dotfile_hash[df.homefile] = df
-      @dotfile_names << df.homefile
-    end
-
     def parse_dotfiles(subdir = nil)
       directory = subdir.nil? ? @dotfiles_path : subdir
       Dir.glob(directory + "/*").each do |f|
         df = Dotfile.new(f, self)
-        add_dotfile(df)
+        @dotfile_hash[df.homefile] = df
         parse_dotfiles(f) if df.directory?
+      end
+    end
+
+    def parse_dangling_dotfiles
+      Find.find(@home_path) do |path|
+        if File.symlink?(path) && ! File.exists?(path) && File.readlink(path).start_with?(@dotfiles_path)
+          df = Dotfile.new(File.readlink(path), self)
+          @cleanup_dotfile_hash[df.homefile] = df
+        end
       end
     end
   end

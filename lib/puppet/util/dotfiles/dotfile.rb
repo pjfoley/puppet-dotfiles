@@ -38,17 +38,18 @@ class Dotfiles
     end
 
     def to_s
-      "#{@dotfile}\n\t#{@homefile}\n\t#{@backupfile}\n\t" + (@exists ? "True" : "False")
+      "Dot: #{@dotfile}\n\tHome: #{@homefile}\n\tBkp: #{@backupfile}\n\tExists: " + (@exists ? "True" : "False")
     end
 
     def install
       if !exists_dotfile?
         self.send(@action)
+        @exists_dotfile = true
       end
     end
 
     def remove
-      puts "Removing"
+      remove_file
     end
 
     def backup
@@ -96,6 +97,10 @@ class Dotfiles
     def backup_file
       FileUtils.mkdir_p File.dirname(@backupfile) if ! File.directory?(File.dirname(@backupfile))
       FileUtils.mv @homefile, File.dirname(@backupfile) + "/#{@timestamp}_" + File.basename(@backupfile)
+    end
+
+    def remove_file
+      FileUtils.safe_unlink @homefile
     end
   end
 end

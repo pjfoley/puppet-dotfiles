@@ -37,10 +37,6 @@ class Dotfiles
                 end
     end
 
-    def to_s
-      "Dot: #{@dotfile}\n\tHome: #{@homefile}\n\tBkp: #{@backupfile}\n\tExists: " + (@exists ? "True" : "False")
-    end
-
     def install
       if !exists_dotfile?
         self.send(@action)
@@ -87,6 +83,7 @@ class Dotfiles
     end
 
     def link
+      FileUtils.rm_rf(@homefile) if File.directory?(@homefile)
       FileUtils.ln_sf @dotfile, @homefile
     end
 

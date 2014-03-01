@@ -5,15 +5,21 @@ module Puppet
 module Util
   class Dotfiles
 
-    def initialize(dotfiles, home, backup = true, backup_path = "#{home}/.dotfiles_org" )
+    def initialize(dotfiles, home, opts = {})
+
       # Folder locations
-      @dotfiles_path, @home_path, @backup_path = dotfiles, home, backup_path
+      @dotfiles_path, @home_path, = dotfiles, home
+      @backup_path = opts[:backup_path] || "#{@home_path}/.dotfiles_org"
 
       # Do we want to backup any existing files
-      @backup = backup
+      @backup = opts[:backup] || false
 
       # Used with backup file name
       @timestamp = Time.now.strftime("%Y%m%d%H%M")
+
+      # File ownership
+      @owner = opts[:owner] || nil
+      @group = opts[:group] || nil
 
       @dotfile_hash = {}
       @cleanup_dotfile_hash = {}
@@ -34,6 +40,7 @@ module Util
         df.backup if @backup && df.exists_bkupfile?
         df.install
       end
+      FileUtils.chown(@owner, @group, @dotfile_hash.keys)
     end
 
     def destroy

@@ -1,4 +1,5 @@
 name 'pjfoley/dotfiles'
 version '0.1.0'
 summary 'Installs dotfiles from specified directory'
+project_page 'https://github.com/pjfoley/puppet-dotfiles'
 description 'Installs dotfiles from specified directory'

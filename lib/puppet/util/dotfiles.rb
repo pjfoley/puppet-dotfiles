@@ -27,6 +27,8 @@ module Util
       if File.directory?(@dotfiles_path)
         parse_dangling_dotfiles
         parse_dotfiles
+      else
+        fail "#{dotfiles_path} does not exist."
       end
     end
 

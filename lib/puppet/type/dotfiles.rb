@@ -12,11 +12,11 @@ Puppet::Type.newtype(:dotfiles) do
   end
 
   validate do
-    if self[:dotfiles] == nil || !File.exists?(self[:dotfiles])
+    if self[:dotfiles] == nil
       raise ArgumentError, "'dotfiles' is missing or is not a valid directory"
     end
 
-    if self[:home] == nil || !File.exists?(self[:home])
+    if self[:home] == nil
       raise ArgumentError, "'home' is missing or is not a valid directory"
     end
   end
